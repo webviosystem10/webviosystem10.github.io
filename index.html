@@ -91,13 +91,12 @@
 </head>
 
 <body>
-    <div class="grid" id="participant-grid"></div>
+    <canvas id="egressCanvas" width="1280" height="720"></canvas>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const roomName = urlParams.get("roomName");
-        const token = urlParams.get("token"); // must be supplied in the URL
-
+        const token = urlParams.get("token");
         if (!roomName || !token) {
             alert("Missing roomName or token in query parameters.");
             throw new Error("Missing params");
@@ -108,97 +107,98 @@
             videoCaptureDefaults: { resolution: { width: 1280, height: 720 } },
         });
 
-        const participantGrid = document.getElementById("participant-grid");
+        const canvas = document.getElementById("egressCanvas");
+        const ctx = canvas.getContext("2d");
 
-        function addParticipantTile(participant) {
-            const tile = document.createElement("div");
-            tile.className = "tile";
-            tile.id = participant.sid;
+        const participants = new Map();
 
-            const contentWrapper = document.createElement("div");
-            contentWrapper.className = "content";
-
-            const video = document.createElement("video");
-            video.autoplay = true;
-            video.playsInline = true;
-            video.muted = true;
-
-            const placeholder = document.createElement("div");
-            placeholder.className = "placeholder";
-
-            const img = document.createElement("img");
-            img.src = "https://w7.pngwing.com/pngs/205/731/png-transparent-default-avatar.png";
-            img.className = "avatar";
-
-            const name = document.createElement("div");
-            name.className = "name";
-            name.textContent = participant.identity || "Guest";
-
-            placeholder.appendChild(img);
-            placeholder.appendChild(name);
-
-            contentWrapper.appendChild(placeholder);
-            tile.appendChild(contentWrapper);
-            participantGrid.appendChild(tile);
-
-            let hasVideoTrack = false;
+        function addParticipant(participant) {
+            participants.set(participant.sid, { participant, videoTrack: null, avatarImg: null });
 
             participant.videoTrackPublications.forEach(pub => {
                 if (pub.isSubscribed && pub.track) {
-                    pub.track.attach(video);
-                    contentWrapper.innerHTML = "";
-                    contentWrapper.appendChild(video);
-                    hasVideoTrack = true;
+                    participants.get(participant.sid).videoTrack = pub.track;
                 }
             });
 
             participant.onTrackSubscribed = (track, publication) => {
                 if (track.kind === "video") {
-                    contentWrapper.innerHTML = "";
-                    track.attach(video);
-                    contentWrapper.appendChild(video);
-                    hasVideoTrack = true;
+                    participants.get(participant.sid).videoTrack = track;
                 }
             };
 
-            // if no video track yet, leave placeholder showing
+            // Load avatar
+            const img = new Image();
+            img.src = "https://w7.pngwing.com/pngs/205/731/png-transparent-default-avatar.png";
+            img.onload = () => {
+                participants.get(participant.sid).avatarImg = img;
+            };
         }
 
-
-        function removeParticipantTile(participant) {
-            const tile = document.getElementById(participant.sid);
-            if (tile) {
-                tile.remove();
-            }
+        function removeParticipant(participant) {
+            participants.delete(participant.sid);
         }
 
-        function highlightActiveSpeaker(speaker) {
-            document.querySelectorAll(".tile").forEach(tile => tile.classList.remove("active"));
-            if (speaker) {
-                const activeTile = document.getElementById(speaker.sid);
-                if (activeTile) {
-                    activeTile.classList.add("active");
+        function renderCanvas() {
+            ctx.fillStyle = "#1a1a1a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const margin = 10;
+            const tileWidth = 300;
+            const tileHeight = 200;
+
+            let i = 0;
+
+            participants.forEach(({ participant, videoTrack, avatarImg }) => {
+                const x = margin + (i % 4) * (tileWidth + margin);
+                const y = margin + Math.floor(i / 4) * (tileHeight + margin);
+
+                // Draw tile background
+                ctx.fillStyle = "#333";
+                ctx.fillRect(x, y, tileWidth, tileHeight);
+
+                if (videoTrack && videoTrack.mediaStreamTrack.readyState === "live") {
+                    const videoElement = document.createElement("video");
+                    videoElement.srcObject = new MediaStream([videoTrack.mediaStreamTrack]);
+                    videoElement.autoplay = true;
+                    videoElement.muted = true;
+                    videoElement.playsInline = true;
+
+                    // Draw video frame onto canvas
+                    videoElement.onloadeddata = () => {
+                        ctx.drawImage(videoElement, x, y, tileWidth, tileHeight);
+                    };
+                } else if (avatarImg) {
+                    // Draw avatar image
+                    ctx.drawImage(avatarImg, x + (tileWidth - 80) / 2, y + 30, 80, 80);
+
+                    // Draw name
+                    ctx.font = "18px sans-serif";
+                    ctx.fillStyle = "#fff";
+                    ctx.textAlign = "center";
+                    ctx.fillText(participant.identity || "Guest", x + tileWidth / 2, y + 130);
                 }
-            }
+
+                i++;
+            });
         }
 
         async function connect() {
             await room.connect("wss://ucaas-conference-oyfjembm.livekit.cloud", token);
-
             console.log("Connected to room successfully!");
 
-            room.remoteParticipants.forEach(addParticipantTile);
+            room.remoteParticipants.forEach(addParticipant);
 
-            room.on("participantConnected", addParticipantTile);
-            room.on("participantDisconnected", removeParticipantTile);
+            room.on("participantConnected", addParticipant);
+            room.on("participantDisconnected", removeParticipant);
 
-            room.on("activeSpeakersChanged", speakers => {
-                highlightActiveSpeaker(speakers[0]);
-            });
+            // Continuous render loop
+            setInterval(renderCanvas, 1000 / 30);
         }
 
         connect();
     </script>
 </body>
+
 
 </html>
