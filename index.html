@@ -30,15 +30,45 @@
 
         .tile {
             position: relative;
-            background: #000;
-            border-radius: 10px;
+            background: #333;
+            border-radius: 8px;
             overflow: hidden;
-            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 16 / 9;
         }
 
         .tile.active {
             border-color: #4CAF50;
             box-shadow: 0 0 20px #4CAF50;
+        }
+
+        .content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #eee;
+            height: 100%;
+        }
+
+        .placeholder img.avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+        }
+
+        .placeholder .name {
+            font-size: 1.2rem;
+            font-weight: 600;
         }
 
         video {
@@ -84,31 +114,55 @@
             tile.className = "tile";
             tile.id = participant.sid;
 
+            const contentWrapper = document.createElement("div");
+            contentWrapper.className = "content";
+
             const video = document.createElement("video");
             video.autoplay = true;
             video.playsInline = true;
             video.muted = true;
 
+            const placeholder = document.createElement("div");
+            placeholder.className = "placeholder";
+
+            const img = document.createElement("img");
+            img.src = "https://w7.pngwing.com/pngs/205/731/png-transparent-default-avatar.png";
+            img.className = "avatar";
+
             const name = document.createElement("div");
             name.className = "name";
-            name.textContent = participant.name || "Guest";
+            name.textContent = participant.identity || "Guest";
 
-            tile.appendChild(video);
-            tile.appendChild(name);
+            placeholder.appendChild(img);
+            placeholder.appendChild(name);
+
+            contentWrapper.appendChild(placeholder);
+            tile.appendChild(contentWrapper);
             participantGrid.appendChild(tile);
+
+            let hasVideoTrack = false;
 
             participant.videoTrackPublications.forEach(pub => {
                 if (pub.isSubscribed && pub.track) {
                     pub.track.attach(video);
+                    contentWrapper.innerHTML = "";
+                    contentWrapper.appendChild(video);
+                    hasVideoTrack = true;
                 }
             });
 
             participant.onTrackSubscribed = (track, publication) => {
                 if (track.kind === "video") {
+                    contentWrapper.innerHTML = "";
                     track.attach(video);
+                    contentWrapper.appendChild(video);
+                    hasVideoTrack = true;
                 }
             };
+
+            // if no video track yet, leave placeholder showing
         }
+
 
         function removeParticipantTile(participant) {
             const tile = document.getElementById(participant.sid);
