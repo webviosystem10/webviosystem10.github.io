@@ -87,11 +87,19 @@
             border-radius: 4px;
             font-size: 14px;
         }
+
+        #egressCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
     </style>
 </head>
 
 <body>
-    <canvas id="egressCanvas" width="1280" height="720"></canvas>
+    <canvas id="egressCanvas"></canvas>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
@@ -111,6 +119,13 @@
         const ctx = canvas.getContext("2d");
 
         const participants = new Map();
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
 
         function addParticipant(participant) {
             participants.set(participant.sid, { participant, videoTrack: null, avatarImg: null });
@@ -143,9 +158,10 @@
             ctx.fillStyle = "#1a1a1a";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const margin = 10;
-            const tileWidth = 300;
-            const tileHeight = 200;
+            const columns = 3;
+            const margin = 20;
+            const tileWidth = (canvas.width - (columns + 1) * margin) / columns;
+            const tileHeight = tileWidth * 9 / 16;
 
             let i = 0;
 
