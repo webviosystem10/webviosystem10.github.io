@@ -132,10 +132,7 @@
 
             console.log("Connected to room successfully!");
 
-            console.log(room);
-
-
-            room.participants.forEach(addParticipantTile);
+            room.remoteParticipants.forEach(addParticipantTile);
 
             room.on("participantConnected", addParticipantTile);
             room.on("participantDisconnected", removeParticipantTile);
