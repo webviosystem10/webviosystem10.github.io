@@ -132,6 +132,9 @@
 
             console.log("Connected to room successfully!");
 
+            console.log(room);
+
+
             room.participants.forEach(addParticipantTile);
 
             room.on("participantConnected", addParticipantTile);
