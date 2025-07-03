@@ -105,6 +105,8 @@
 
         window.addEventListener('load', () => {
 
+            ping("window.LiveKitRecorder: " + (typeof window.LiveKitRecorder));
+
             function ping(msg) {
                 fetch(`https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?msg=${encodeURIComponent(msg)}`)
                     .catch(err => {
@@ -247,6 +249,10 @@
             }
 
             connect();
+
+
+            window.addEventListener('error', e => ping("windowError: " + e.message));
+            window.addEventListener('unhandledrejection', e => ping("promiseRejection: " + e.reason));
 
         })
     </script>
