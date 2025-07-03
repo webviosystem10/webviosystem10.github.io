@@ -228,7 +228,14 @@
 
             async function connect() {
                 await room.connect("wss://ucaas-conference-oyfjembm.livekit.cloud", token);
-                console.log("Connected to room successfully!");
+                ping("roomConnected");
+
+                if (window.LiveKitRecorder) {
+                    window.LiveKitRecorder.start();
+                    ping("recordingStarted");
+                } else {
+                    ping("recorderObjectNotFound");
+                }
 
                 room.remoteParticipants.forEach(addParticipant);
 
