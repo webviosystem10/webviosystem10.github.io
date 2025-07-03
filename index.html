@@ -127,6 +127,15 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
+        // Draw something immediately so first frame isn't black
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "60px sans-serif";
+        ctx.fillText("Loading conference...", 100, 100);
+
+        fetch("https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?frame=drawn");
+
         function addParticipant(participant) {
             participants.set(participant.sid, { participant, videoTrack: null, avatarImg: null });
 
@@ -144,6 +153,7 @@
 
             // Load avatar
             const img = new Image();
+            img.crossOrigin = "anonymous";
             img.src = "https://w7.pngwing.com/pngs/205/731/png-transparent-default-avatar.png";
             img.onload = () => {
                 participants.get(participant.sid).avatarImg = img;
