@@ -97,7 +97,7 @@
             tile.appendChild(name);
             participantGrid.appendChild(tile);
 
-            participant.videoTracks.forEach(pub => {
+            participant.videoTrackPublications.forEach(pub => {
                 if (pub.isSubscribed && pub.track) {
                     pub.track.attach(video);
                 }
