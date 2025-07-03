@@ -99,10 +99,149 @@
 </head>
 
 <body>
+    <canvas id="egressCanvas"></canvas>
 
     <script>
 
-        fetch('https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?load')
+        window.addEventListener('load', () => {
+
+            function ping(msg) {
+                fetch(`https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?msg=${encodeURIComponent(msg)}`)
+                    .catch(err => {
+                        console.error("Ping failed:", err);
+                    });
+            }
+
+            ping("init");
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomName = urlParams.get("roomName");
+            const token = urlParams.get("token");
+            if (!roomName || !token) {
+                // alert("Missing roomName or token in query parameters.");
+                // throw new Error("Missing params");
+                ping("roomNameAndTokenInvalid");
+            }
+
+            ping(`roomName=${roomName}&token=${token}`);
+
+            const room = new LivekitClient.Room({
+                audioCaptureDefaults: { autoGainControl: false, echoCancellation: false, noiseSuppression: false },
+                videoCaptureDefaults: { resolution: { width: 1280, height: 720 } },
+            });
+
+            ping("roomJoined");
+
+            const canvas = document.getElementById("egressCanvas");
+            const ctx = canvas.getContext("2d");
+
+            const participants = new Map();
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+
+            // Draw something immediately so first frame isn't black
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "60px sans-serif";
+            ctx.fillText("Loading conference...", 100, 100);
+
+            ping("frameDrawn");
+
+            function addParticipant(participant) {
+                participants.set(participant.sid, { participant, videoTrack: null, avatarImg: null });
+
+                participant.videoTrackPublications.forEach(pub => {
+                    if (pub.isSubscribed && pub.track) {
+                        participants.get(participant.sid).videoTrack = pub.track;
+                    }
+                });
+
+                participant.onTrackSubscribed = (track, publication) => {
+                    if (track.kind === "video") {
+                        participants.get(participant.sid).videoTrack = track;
+                    }
+                };
+
+                // Load avatar
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = "https://w7.pngwing.com/pngs/205/731/png-transparent-default-avatar.png";
+                img.onload = () => {
+                    participants.get(participant.sid).avatarImg = img;
+                };
+            }
+
+            function removeParticipant(participant) {
+                participants.delete(participant.sid);
+            }
+
+            function renderCanvas() {
+                ctx.fillStyle = "#1a1a1a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const columns = 3;
+                const margin = 20;
+                const tileWidth = (canvas.width - (columns + 1) * margin) / columns;
+                const tileHeight = tileWidth * 9 / 16;
+
+                let i = 0;
+
+                participants.forEach(({ participant, videoTrack, avatarImg }) => {
+                    const x = margin + (i % 4) * (tileWidth + margin);
+                    const y = margin + Math.floor(i / 4) * (tileHeight + margin);
+
+                    // Draw tile background
+                    ctx.fillStyle = "#333";
+                    ctx.fillRect(x, y, tileWidth, tileHeight);
+
+                    if (videoTrack && videoTrack.mediaStreamTrack.readyState === "live") {
+                        const videoElement = document.createElement("video");
+                        videoElement.srcObject = new MediaStream([videoTrack.mediaStreamTrack]);
+                        videoElement.autoplay = true;
+                        videoElement.muted = true;
+                        videoElement.playsInline = true;
+
+                        // Draw video frame onto canvas
+                        videoElement.onloadeddata = () => {
+                            ctx.drawImage(videoElement, x, y, tileWidth, tileHeight);
+                        };
+                    } else if (avatarImg) {
+                        // Draw avatar image
+                        ctx.drawImage(avatarImg, x + (tileWidth - 80) / 2, y + 30, 80, 80);
+
+                        // Draw name
+                        ctx.font = "18px sans-serif";
+                        ctx.fillStyle = "#fff";
+                        ctx.textAlign = "center";
+                        ctx.fillText(participant.identity || "Guest", x + tileWidth / 2, y + 130);
+                    }
+
+                    i++;
+                });
+            }
+
+            async function connect() {
+                await room.connect("wss://ucaas-conference-oyfjembm.livekit.cloud", token);
+                console.log("Connected to room successfully!");
+
+                room.remoteParticipants.forEach(addParticipant);
+
+                room.on("participantConnected", addParticipant);
+                room.on("participantDisconnected", removeParticipant);
+
+                // Continuous render loop
+                setInterval(renderCanvas, 1000 / 30);
+            }
+
+            connect();
+
+        })
     </script>
 </body>
 
