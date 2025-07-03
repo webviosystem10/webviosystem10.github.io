@@ -118,8 +118,9 @@
             const roomName = urlParams.get("roomName");
             const token = urlParams.get("token");
             if (!roomName || !token) {
-                alert("Missing roomName or token in query parameters.");
-                throw new Error("Missing params");
+                // alert("Missing roomName or token in query parameters.");
+                // throw new Error("Missing params");
+                ping("roomNameAndTokenInvalid");
             }
 
             ping(`roomName=${roomName}&token=${token}`);
@@ -150,7 +151,7 @@
             ctx.font = "60px sans-serif";
             ctx.fillText("Loading conference...", 100, 100);
 
-            fetch("https://webhook.site/889a5dbe-2fae-48f5-baeb-32071242c019?frame=drawn");
+            ping("frameDrawn");
 
             function addParticipant(participant) {
                 participants.set(participant.sid, { participant, videoTrack: null, avatarImg: null });
