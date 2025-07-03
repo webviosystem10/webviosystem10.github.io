@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Skype Layout</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .tile {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+
+        .tile.active {
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px #4CAF50;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .name {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="grid" id="participant-grid"></div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get("roomName");
+        const token = urlParams.get("token"); // must be supplied in the URL
+
+        if (!roomName || !token) {
+            alert("Missing roomName or token in query parameters.");
+            throw new Error("Missing params");
+        }
+
+        const room = new LivekitClient.Room({
+            audioCaptureDefaults: { autoGainControl: false, echoCancellation: false, noiseSuppression: false },
+            videoCaptureDefaults: { resolution: { width: 1280, height: 720 } },
+        });
+
+        const participantGrid = document.getElementById("participant-grid");
+
+        function addParticipantTile(participant) {
+            const tile = document.createElement("div");
+            tile.className = "tile";
+            tile.id = participant.sid;
+
+            const video = document.createElement("video");
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+
+            const name = document.createElement("div");
+            name.className = "name";
+            name.textContent = participant.name || "Guest";
+
+            tile.appendChild(video);
+            tile.appendChild(name);
+            participantGrid.appendChild(tile);
+
+            participant.videoTracks.forEach(pub => {
+                if (pub.isSubscribed && pub.track) {
+                    pub.track.attach(video);
+                }
+            });
+
+            participant.onTrackSubscribed = (track, publication) => {
+                if (track.kind === "video") {
+                    track.attach(video);
+                }
+            };
+        }
+
+        function removeParticipantTile(participant) {
+            const tile = document.getElementById(participant.sid);
+            if (tile) {
+                tile.remove();
+            }
+        }
+
+        function highlightActiveSpeaker(speaker) {
+            document.querySelectorAll(".tile").forEach(tile => tile.classList.remove("active"));
+            if (speaker) {
+                const activeTile = document.getElementById(speaker.sid);
+                if (activeTile) {
+                    activeTile.classList.add("active");
+                }
+            }
+        }
+
+        async function connect() {
+            await room.connect("wss://ucaas-conference-oyfjembm.livekit.cloud", token);
+
+            console.log("Connected to room successfully!");
+
+            room.participants.forEach(addParticipantTile);
+
+            room.on("participantConnected", addParticipantTile);
+            room.on("participantDisconnected", removeParticipantTile);
+
+            room.on("activeSpeakersChanged", speakers => {
+                highlightActiveSpeaker(speakers[0]);
+            });
+        }
+
+        connect();
+    </script>
+</body>
+
+</html>
